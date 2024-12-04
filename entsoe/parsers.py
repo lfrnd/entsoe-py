@@ -112,6 +112,10 @@ def parse_loads(xml_text, process_type='A01'):
         })
 
 
+def parse_generic(xml_text):
+    return _parse_timeseries_generic_whole(xml_text, to_float=True)
+
+
 def parse_generation(
         xml_text: str,
         per_plant: bool = False,

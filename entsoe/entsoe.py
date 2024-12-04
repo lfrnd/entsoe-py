@@ -18,7 +18,7 @@ from .parsers import parse_prices, parse_loads, parse_generation, \
     parse_unavailabilities, parse_contracted_reserve, parse_imbalance_prices_zip, \
     parse_imbalance_volumes_zip, parse_netpositions, parse_procured_balancing_capacity, \
     parse_water_hydro, parse_aggregated_bids, parse_activated_balancing_energy_prices, \
-    parse_offshore_unavailability
+    parse_offshore_unavailability, parse_generic
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
@@ -284,6 +284,22 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
+    def query_flow_allocations(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        process_type: str = 'A44'
+    ) -> str:
+        area = lookup_area(country_code)
+        params = {
+            'documentType': 'B09',
+            'processType': process_type,
+            'domain.mRID': area.code,
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.text
+
     def query_generation_forecast(
         self, country_code: Union[Area, str], start: pd.Timestamp,
         end: pd.Timestamp, process_type: str = 'A01') -> str:
@@ -528,6 +544,112 @@ class EntsoeRawClient:
             country_code_to=country_code_to, start=start, end=end,
             doctype="A09", contract_marketagreement_type=contract_marketagreement_type)
 
+    def query_dc_link_capacity_limits(
+        self, country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A93",
+        )
+
+    def query_congestion_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code,
+            country_code_to=country_code,
+            start=start, end=end,
+            doctype="A92",
+            business_type="B04",
+        )
+
+    def query_countertrading_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code,
+            country_code_to=country_code,
+            start=start, end=end,
+            doctype="A92",
+            business_type="B03",
+        )
+
+    def query_redispatching_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code,
+            country_code_to=country_code,
+            start=start, end=end,
+            doctype="A92",
+            business_type="A46",
+        )
+
+    def query_redispatching_internal(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code,
+            country_code_to=country_code,
+            start=start, end=end,
+            doctype="A63",
+            business_type="A85",
+        )
+
+    def query_redispatching_crossborder(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A63",
+            business_type="A46",
+        )
+
+    def query_expansion_dismantling_project(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A90",
+            business_type="B01",
+        )
+
     def query_net_transfer_capacity_dayahead(
         self, country_code_from: Union[Area, str],
         country_code_to: Union[Area, str], start: pd.Timestamp,
@@ -612,36 +734,17 @@ class EntsoeRawClient:
             country_code_to=country_code_to, start=start, end=end,
             doctype="A61", contract_marketagreement_type="A04")
 
-    def query_intraday_offered_capacity(
-        self, country_code_from: Union[Area, str],
-        country_code_to: Union[Area, str], start: pd.Timestamp,
-        end: pd.Timestamp, implicit: bool = True, **kwargs) -> str:
-        """
-        Parameters
-        ----------
-        country_code_from : Area|str
-        country_code_to : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
-
-        Returns
-        -------
-        str
-        """
-        return self._query_crossborder(
-            country_code_from=country_code_from,
-            country_code_to=country_code_to, start=start, end=end,
-            doctype="A31", contract_marketagreement_type="A07",
-            auction_type=("A01" if implicit == True else "A02"))
-
     def query_offered_capacity(
-        self, country_code_from: Union[Area, str],
-        country_code_to: Union[Area, str], start: pd.Timestamp,
-        end: pd.Timestamp, contract_marketagreement_type: str,
-        implicit: bool = True, **kwargs) -> str:
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        implicit: bool = True,
+        **kwargs
+    ) -> str:
         """
-        Allocated result documents, for OC evolution see query_intraday_offered_capacity
 
         Parameters
         ----------
@@ -657,17 +760,129 @@ class EntsoeRawClient:
         -------
         str
         """
-        if implicit:
-            business_type = None
-        else:
-            business_type = "B05"
         return self._query_crossborder(
             country_code_from=country_code_from,
             country_code_to=country_code_to, start=start, end=end,
-            doctype=("A31" if implicit else "A25"),
+            doctype="A31",
             contract_marketagreement_type=contract_marketagreement_type,
             auction_type=("A01" if implicit else "A02"),
-            business_type=business_type)
+        )
+
+    def query_capacity_usage(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A25",
+            business_type="B05",
+            auction_category="A04",
+            contract_marketagreement_type=contract_marketagreement_type,
+        )
+
+    def query_energy_prices(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        offset: int = 0,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A44",
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset,
+        )
+
+    def query_auction_revenue(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A25",
+            business_type="B07",
+            auction_category="A04",
+            contract_marketagreement_type=contract_marketagreement_type,
+        )
+
+    def query_congestion_income(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A25",
+            contract_marketagreement_type=contract_marketagreement_type,
+            business_type="B10"
+        )
+
+    def query_transfer_capacities_third_countries(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        implicit: bool = True,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A94",
+            contract_marketagreement_type=contract_marketagreement_type,
+            auction_type="A01" if implicit else "A02",
+            auction_category="A04",
+        )
+
+    def query_total_capacity_allocated(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        contract_marketagreement_type: str,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A26",
+            contract_marketagreement_type=contract_marketagreement_type,
+            business_type="A29",
+            auction_category="A04",
+        )
+
+    def query_total_nominated_capacity(
+        self,
+        country_code_from: Union[Area, str], country_code_to: Union[Area, str],
+        start: pd.Timestamp, end: pd.Timestamp,
+        **kwargs
+    ) -> str:
+        return self._query_crossborder(
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start, end=end,
+            doctype="A26",
+            business_type="B08"
+        )
 
     def _query_crossborder(
         self,
@@ -676,7 +891,9 @@ class EntsoeRawClient:
         doctype: str,
         contract_marketagreement_type: Optional[str] = None,
         auction_type: Optional[str] = None,
+        auction_category: Optional[str] = None,
         business_type: Optional[str] = None,
+        offset: Optional[int] = None,
     ) -> str:
         """
         Generic function called by query_crossborder_flows,
@@ -705,14 +922,15 @@ class EntsoeRawClient:
             'out_Domain': area_out.code
         }
         if contract_marketagreement_type is not None:
-            params[
-                'contract_MarketAgreement.Type'] = contract_marketagreement_type
+            params['contract_MarketAgreement.Type'] = contract_marketagreement_type
         if auction_type is not None:
-            params[
-                'Auction.Type'] = auction_type
+            params['Auction.Type'] = auction_type
+        if auction_category is not None:
+            params['auction.Category'] = auction_category
         if business_type is not None:
-            params[
-                'businessType'] = business_type
+            params['businessType'] = business_type
+        if offset is not None:
+            params['offset'] = offset
 
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -1320,6 +1538,37 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    def _query_common_single_country(
+        self,
+        super_method: str,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        parse_func=parse_generic,
+        **kwargs,
+    ) -> pd.Series:
+        area = lookup_area(country_code)
+        method = getattr(super(EntsoePandasClient, self), super_method)
+        text = method(
+            country_code=area, start=start, end=end, **kwargs
+        )
+        df = parse_func(text)
+        df = df.tz_convert(area.tz)
+        df = df.truncate(before=start, after=end)
+        return df
+
+    def query_flow_allocations(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        process_type: str = 'A44'
+    ) -> pd.Series:
+        return self._query_common_single_country(
+            super_method="query_flow_allocations", country_code=country_code,
+            start=start, end=end, process_type=process_type
+        )
+
     def query_load_and_forecast(
         self, country_code: Union[Area, str], start: pd.Timestamp,
         end: pd.Timestamp) -> pd.DataFrame:
@@ -1692,38 +1941,6 @@ class EntsoePandasClient(EntsoeRawClient):
         return ts
 
     @year_limited
-    def query_intraday_offered_capacity(
-        self, country_code_from: Union[Area, str],
-        country_code_to: Union[Area, str], start: pd.Timestamp,
-        end: pd.Timestamp, implicit: bool = True, **kwargs) -> pd.Series:
-        """
-        Note: Result will be in the timezone of the origin country  --> to check
-
-        Parameters
-        ----------
-        country_code_from : Area|str
-        country_code_to : Area|str
-        start : pd.Timestamp
-        end : pd.Timestamp
-        implicit: bool (True = implicit - default for most borders. False = explicit - for instance BE-GB)
-        Returns
-        -------
-        pd.Series
-        """
-        area_to = lookup_area(country_code_to)
-        area_from = lookup_area(country_code_from)
-        text = super(EntsoePandasClient, self).query_intraday_offered_capacity(
-            country_code_from=area_from,
-            country_code_to=area_to,
-            start=start,
-            end=end,
-            implicit=implicit)
-        ts = parse_crossborder_flows(text)
-        ts = ts.tz_convert(area_from.tz)
-        ts = ts.truncate(before=start, after=end)
-        return ts
-
-    @year_limited
     @paginated
     # @documents_limited(100)
     def query_offered_capacity(
@@ -1735,7 +1952,6 @@ class EntsoePandasClient(EntsoeRawClient):
         end: pd.Timestamp,
         implicit: bool = True, offset: int = 0, **kwargs) -> pd.Series:
         """
-        Allocated result documents, for OC evolution see query_intraday_offered_capacity
         Note: Result will be in the timezone of the origin country  --> to check
 
         Parameters
@@ -1767,6 +1983,258 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
+
+    def _query_common_crossborder(
+        self,
+        super_method: str,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        parse_function=parse_crossborder_flows,
+        **kwargs
+    ) -> pd.Series:
+        area_to = lookup_area(country_code_to)
+        area_from = lookup_area(country_code_from)
+        method = getattr(super(EntsoePandasClient, self), super_method)
+        text = method(
+            country_code_from=area_from,
+            country_code_to=area_to,
+            start=start,
+            end=end,
+            **kwargs
+        )
+        ts = parse_function(text)
+        ts = ts.tz_convert(area_from.tz)
+        ts = ts.truncate(before=start, after=end)
+        return ts
+
+    @year_limited
+    @paginated
+    @documents_limited(100)
+    def query_energy_prices(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0, **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_energy_prices",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset
+        )
+
+    @paginated
+    def query_redispatching_crossborder(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_redispatching_crossborder",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+        )
+
+    @paginated
+    def query_capacity_usage(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0, **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_capacity_usage",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset
+        )
+
+    @paginated
+    def query_auction_revenue(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0, **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_auction_revenue",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset
+        )
+
+    @paginated
+    def query_congestion_income(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0, **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_congestion_income",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset
+        )
+
+    @paginated
+    def query_transfer_capacities_third_countries(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0,
+        implicit: bool = True,
+        **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_transfer_capacities_third_countries",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset,
+            implicit=implicit,
+        )
+
+    @paginated
+    def query_total_capacity_allocated(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        contract_marketagreement_type: str,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0,
+        **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_total_capacity_allocated",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset,
+        )
+
+    @paginated
+    def query_total_nominated_capacity(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        offset: int = 0, **kwargs
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_total_nominated_capacity",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+            offset=offset
+        )
+
+    @paginated
+    def query_dc_link_capacity_limits(
+        self,
+        country_code_from: Union[Area, str],
+        country_code_to: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs,
+    ) -> pd.Series:
+        return self._query_common_crossborder(
+            super_method="query_dc_link_capacity_limits",
+            country_code_from=country_code_from,
+            country_code_to=country_code_to,
+            start=start,
+            end=end,
+        )
+
+    @paginated
+    def query_congestion_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs,
+    ) -> pd.Series:
+        return self._query_common_single_country(
+            super_method="congestion_costs", country_code=country_code,
+            start=start, end=end,
+        )
+
+    def query_countertrading_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs,
+    ) -> pd.Series:
+        return self._query_common_single_country(
+            super_method="query_countertrading_costs", country_code=country_code,
+            start=start, end=end,
+        )
+
+    def query_redispatching_costs(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs,
+    ) -> pd.Series:
+        return self._query_common_single_country(
+            super_method="query_redispatching_costs", country_code=country_code,
+            start=start, end=end,
+        )
+
+    def query_redispatching_internal(
+        self,
+        country_code: Union[Area, str],
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        **kwargs,
+    ) -> pd.Series:
+        return self._query_common_single_country(
+            super_method="query_redispatching_internal", country_code=country_code,
+            start=start, end=end,
+        )
 
     @year_limited
     def query_activated_balancing_energy_prices(
