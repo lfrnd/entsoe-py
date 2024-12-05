@@ -1179,7 +1179,6 @@ class EntsoeRawClient:
             end=end,
             doctype="A25",
             business_type="B07",
-            auction_category="A04",
             contract_marketagreement_type=contract_marketagreement_type,
         )
 
@@ -2928,7 +2927,6 @@ class EntsoePandasClient(EntsoeRawClient):
         contract_marketagreement_type: str,
         start: pd.Timestamp,
         end: pd.Timestamp,
-        offset: int = 0,
         **kwargs,
     ) -> pd.Series:
         return self._query_common_crossborder(
@@ -2938,7 +2936,6 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             contract_marketagreement_type=contract_marketagreement_type,
-            offset=offset,
         )
 
     @paginated
