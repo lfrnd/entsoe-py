@@ -1145,8 +1145,7 @@ class EntsoeRawClient:
 
     def query_energy_prices(
         self,
-        country_code_from: Union[Area, str],
-        country_code_to: Union[Area, str],
+        country_code: Union[Area, str],
         start: pd.Timestamp,
         end: pd.Timestamp,
         contract_marketagreement_type: str,
@@ -1154,8 +1153,8 @@ class EntsoeRawClient:
         **kwargs,
     ) -> str:
         return self._query_crossborder(
-            country_code_from=country_code_from,
-            country_code_to=country_code_to,
+            country_code_from=country_code,
+            country_code_to=country_code,
             start=start,
             end=end,
             doctype="A44",
@@ -2577,18 +2576,16 @@ class EntsoePandasClient(EntsoeRawClient):
     @documents_limited(100)
     def query_energy_prices(
         self,
-        country_code_from: Union[Area, str],
-        country_code_to: Union[Area, str],
+        country_code: Union[Area, str],
         contract_marketagreement_type: str,
         start: pd.Timestamp,
         end: pd.Timestamp,
         offset: int = 0,
         **kwargs,
     ) -> pd.Series:
-        return self._query_common_crossborder(
+        return self._query_common_single_country(
             super_method="query_energy_prices",
-            country_code_from=country_code_from,
-            country_code_to=country_code_to,
+            country_code=country_code,
             start=start,
             end=end,
             contract_marketagreement_type=contract_marketagreement_type,
