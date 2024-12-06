@@ -19,21 +19,24 @@ def _extract_timeseries(xml_text):
         yield timeseries
 
 
+RESOLUTIONS = {
+    'PT60M': '60min',
+    'P1Y': '12MS',
+    'PT15M': '15min',
+    'PT30M': '30min',
+    'P1D': '1D',
+    'P7D': '7D',
+    'P1M': '1MS',
+    'PT1M': '1min'
+}
+
+
 def _resolution_to_timedelta(res_text: str) -> str:
     """
     Convert an Entsoe resolution to something that pandas can understand
     """
-    resolutions = {
-        'PT60M': '60min',
-        'P1Y': '12MS',
-        'PT15M': '15min',
-        'PT30M': '30min',
-        'P1D': '1D',
-        'P7D': '7D',
-        'P1M': '1MS',
-        'PT1M': '1min'
-    }
-    delta = resolutions.get(res_text)
+
+    delta = RESOLUTIONS.get(res_text)
     if delta is None:
         raise NotImplementedError("Sorry, I don't know what to do with the "
                                   "resolution '{}', because there was no "
@@ -84,11 +87,7 @@ def _parse_datetimeindex(soup, tz=None):
 
 
 def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_series=False, period_name='period'):
-    series = {
-        '15min': [],
-        '30min': [],
-        '60min': []
-    }
+    series = {resolution: [] for resolution in RESOLUTIONS.values()}
 
     for period in soup.find_all(period_name):
         data = {}
@@ -101,17 +100,18 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
             if to_float:
                 value = value.replace(',', '')
             position = int(point.find('position').text)
-            data[start + (position-1)*delta] = value
+            data[start + (position - 1) * delta] = value
         S = pd.Series(data).sort_index()
         if soup.find('curvetype').text == 'A03':
             # with A03 its possible that positions are missing, this is when values are repeated
             # see docs: https://eepublicdownloads.entsoe.eu/clean-documents/EDI/Library/cim_based/Introduction_of_different_Timeseries_possibilities__curvetypes__with_ENTSO-E_electronic_document_v1.4.pdf
             # so lets do reindex on a continious range which creates gaps if positions are missing
             # then forward fill, so repeat last valid value, to fill the gaps
-            S = S.reindex(pd.date_range(start, end-delta, freq=delta_text)).ffill()
+            S = S.reindex(pd.date_range(start, end - delta, freq=delta_text)).ffill()
         if delta_text not in series:
             series[delta_text] = []
         series[delta_text].append(S)
+
     for freq, S in series.items():
         if len(S) > 0:
             series[freq] = pd.concat(S).sort_index()
