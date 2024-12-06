@@ -1239,7 +1239,6 @@ class EntsoeRawClient:
             doctype="A26",
             contract_marketagreement_type=contract_marketagreement_type,
             business_type="A29",
-            auction_category="A04",
         )
 
     def query_total_nominated_capacity(
