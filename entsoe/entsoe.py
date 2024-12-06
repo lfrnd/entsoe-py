@@ -116,7 +116,7 @@ class EntsoeRawClient:
             text = soup.find_all("text")
             if len(text):
                 error_text = soup.find("text").text
-                if "No matching data found" in error_text:
+                if "No matching data found" in error_text or "No corresponding" in error_text:
                     raise NoMatchingDataError
                 elif "check you request against dependency tables" in error_text:
                     raise InvalidBusinessParameterError
