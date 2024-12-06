@@ -46,10 +46,10 @@ def parse_prices(xml_text):
 
 
 def parse_congestion_cost(xml_text):
-    resolution = '60min'
+    resolution = '1MS'
     series = []
     for soup in _extract_timeseries(xml_text):
-        soup_series = _parse_timeseries_generic(soup, 'congestioncost_price.amount')[resolution]
+        soup_series = _parse_timeseries_generic(soup, label='congestioncost_price.amount', period_name="timeseries")[resolution]
         series.append(soup_series)
 
     try:
