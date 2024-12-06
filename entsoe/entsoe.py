@@ -3086,6 +3086,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end,
         )
 
+    @paginated
     def query_countertrading_costs(
         self,
         country_code: Union[Area, str],
@@ -3101,6 +3102,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end,
         )
 
+    @paginated
     def query_redispatching_costs(
         self,
         country_code: Union[Area, str],
