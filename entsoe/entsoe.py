@@ -2585,6 +2585,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_energy_prices",
+            parse_func=lambda text: parse_prices(text)["60min"],
             country_code=country_code,
             start=start,
             end=end,
