@@ -45,6 +45,20 @@ def parse_prices(xml_text):
     return series
 
 
+def parse_congestion_cost(xml_text):
+    resolution = '60min'
+    series = []
+    for soup in _extract_timeseries(xml_text):
+        soup_series = _parse_timeseries_generic(soup, 'congestioncost_price.amount')[resolution]
+        series.append(soup_series)
+
+    try:
+        series = pd.concat(series).sort_index()
+    except ValueError:
+        series = pd.Series()
+    return series
+
+
 def parse_netpositions(xml_text, resolution):
     """
 

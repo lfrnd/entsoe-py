@@ -30,7 +30,7 @@ from .parsers import (
     parse_prices,
     parse_procured_balancing_capacity,
     parse_unavailabilities,
-    parse_water_hydro,
+    parse_water_hydro, parse_congestion_cost,
 )
 
 
@@ -3065,6 +3065,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_congestion_costs",
+            parse_func=parse_congestion_cost,
             country_code=country_code,
             start=start,
             end=end,
@@ -3094,6 +3095,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_countertrading_costs",
+            parse_func=parse_congestion_cost,
             country_code=country_code,
             start=start,
             end=end,
@@ -3108,6 +3110,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_redispatching_costs",
+            parse_func=parse_congestion_cost,
             country_code=country_code,
             start=start,
             end=end,
