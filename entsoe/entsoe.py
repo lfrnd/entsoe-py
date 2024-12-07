@@ -2100,6 +2100,7 @@ class EntsoePandasClient(EntsoeRawClient):
         df = df.truncate(before=start, after=end)
         return df
 
+    @paginated
     def query_flow_allocations(
         self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, process_type: str = "A44"
     ) -> pd.Series:
@@ -3118,6 +3119,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end,
         )
 
+    @paginated
     def query_redispatching_internal(
         self,
         country_code: Union[Area, str],
