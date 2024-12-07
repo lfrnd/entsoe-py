@@ -114,6 +114,7 @@ class EntsoeRawClient:
         except requests.HTTPError as e:
             soup = BeautifulSoup(response.text, "html.parser")
             text = soup.find_all("text")
+            error_text = None
             if len(text):
                 error_text = soup.find("text").text
                 if "No matching data found" in error_text or "No corresponding" in error_text:
@@ -138,6 +139,7 @@ class EntsoeRawClient:
                         f"request. This query requested for {requested} "
                         f"documents and cannot be fulfilled as is."
                     )
+            logger.error(f"Encountered unexpected error response: {error_text or text}")
             raise e
         else:
             # ENTSO-E has changed their server to also respond with 200 if there is no data but all parameters are valid
