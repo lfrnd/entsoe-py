@@ -8,7 +8,8 @@ from bs4.builder import XMLParsedAsHTMLWarning
 import pandas as pd
 
 from .mappings import PSRTYPE_MAPPINGS, DOCSTATUS, BSNTYPE, Area
-from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, _parse_timeseries_generic,\
+from .series_parsers import _extract_timeseries, _resolution_to_timedelta, _parse_datetimeindex, \
+    _parse_timeseries_generic, \
     _parse_timeseries_generic_whole
 
 warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
@@ -81,13 +82,12 @@ def parse_netpositions(xml_text, resolution):
             factor = 1
         # for some reason some values have sign flipped in api output. this is probably a bug,
         # take the absolute value and correct for region
-        #TODO: possible change this or remove this warning after helpdesk got back to me
-        series_all.append(factor*series.abs())
+        # TODO: possible change this or remove this warning after helpdesk got back to me
+        series_all.append(factor * series.abs())
     if len(series_all) == 0:
         return pd.Series()
     series_all = pd.concat(series_all).sort_index()
     return series_all
-
 
 
 def parse_loads(xml_text, process_type='A01'):
@@ -131,10 +131,10 @@ def parse_generic(xml_text):
 
 
 def parse_generation(
-        xml_text: str,
-        per_plant: bool = False,
-        include_eic: bool = False,
-        nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
+    xml_text: str,
+    per_plant: bool = False,
+    include_eic: bool = False,
+    nett: bool = False) -> Union[pd.DataFrame, pd.Series]:
     """
     Parameters
     ----------
@@ -179,7 +179,7 @@ def parse_generation(
 
 
 def _calc_nett_and_drop_redundant_columns(
-        df: pd.DataFrame, nett: bool) -> pd.DataFrame:
+    df: pd.DataFrame, nett: bool) -> pd.DataFrame:
     def _calc_nett(_df):
         try:
             if set(['Actual Aggregated']).issubset(_df):
@@ -189,10 +189,10 @@ def _calc_nett_and_drop_redundant_columns(
                 else:
                     _new = _df['Actual Aggregated'].fillna(0)
             else:
-                _new = -_df['Actual Consumption'].fillna(0)    
-            
+                _new = -_df['Actual Consumption'].fillna(0)
+
         except KeyError:
-            print ('Netting production and consumption not possible. Column not found')
+            print('Netting production and consumption not possible. Column not found')
         return _new
 
     if hasattr(df.columns, 'levels'):
@@ -273,7 +273,7 @@ def parse_crossborder_flows(xml_text):
     """
     return _parse_timeseries_generic_whole(xml_text, to_float=True)
 
-    
+
 def parse_activated_balancing_energy_prices(xml_text):
     """
     Parameters
@@ -291,6 +291,7 @@ def parse_activated_balancing_energy_prices(xml_text):
     df = pd.concat(frames)
     df.sort_index(inplace=True)
     return df
+
 
 def parse_imbalance_prices(xml_text):
     """
@@ -350,6 +351,7 @@ def parse_procured_balancing_capacity(xml_text, tz):
     df.sort_index(axis=1, inplace=True)
     return df
 
+
 def parse_aggregated_bids(xml_text):
     """
 
@@ -360,7 +362,7 @@ def parse_aggregated_bids(xml_text):
     Returns
     -------
     pd.DataFrame
-    """     
+    """
     timeseries_blocks = _extract_timeseries(xml_text)
     frames = (_parse_aggregated_bids_timeseries(soup)
               for soup in timeseries_blocks)
@@ -369,6 +371,7 @@ def parse_aggregated_bids(xml_text):
     df.sort_index(axis=0, inplace=True)
     df.sort_index(axis=1, inplace=True)
     return df
+
 
 def _parse_aggregated_bids_timeseries(soup):
     """
@@ -390,12 +393,12 @@ def _parse_aggregated_bids_timeseries(soup):
     start = pd.to_datetime(period.find('timeinterval').find('start').text)
     end = pd.to_datetime(period.find('timeinterval').find('end').text)
     resolution = _resolution_to_timedelta(period.find('resolution').text)
-    
+
     tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
     df = pd.DataFrame(index=tx, columns=['Offered', 'Activated'])
-    
+
     points = period.find_all('point')
-    
+
     for dt, point in zip(tx, points):
         df.loc[dt, 'Offered'] = float(point.find('quantity').text)
         activated = point.find('secondaryquantity')
@@ -409,6 +412,7 @@ def _parse_aggregated_bids_timeseries(soup):
     )
 
     return df
+
 
 def _parse_procured_balancing_capacity(soup, tz):
     """
@@ -465,7 +469,7 @@ def parse_contracted_reserve(xml_text, tz, label):
               for soup in timeseries_blocks)
     df = pd.concat(frames, axis=1)
     # Ad-hoc fix to prevent that columns are split by NaNs:
-    df = df.groupby(axis=1, level = [0,1]).mean()
+    df = df.groupby(axis=1, level=[0, 1]).mean()
     df.sort_index(inplace=True)
     return df
 
@@ -509,10 +513,11 @@ def _parse_contracted_reserve_series(soup, tz, label):
     reserve_type = BSNTYPE[soup.find("businesstype").text]
     df.rename(columns={label: reserve_type}, inplace=True)
 
-    # Second column level: the flow direction 
+    # Second column level: the flow direction
     direction = direction_dico[soup.find("flowdirection.direction").text]
     df.columns = pd.MultiIndex.from_product([df.columns, [direction]])
     return df
+
 
 def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     """
@@ -524,6 +529,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     -------
     pd.DataFrame
     """
+
     def gen_frames(archive):
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
@@ -535,6 +541,7 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
     df = pd.concat(frames)
     df.sort_index(inplace=True)
     return df
+
 
 def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
     """
@@ -558,7 +565,6 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
         'A98': 'RR'
     }
 
-
     flow_direction = direction_options[soup.find('flowdirection.direction').text]
     reserve_type = reserve_type_options[soup.find('businesstype').text]
     period = soup.find('period')
@@ -571,13 +577,14 @@ def _parse_activated_balancing_energy_prices_timeseries(soup) -> pd.DataFrame:
 
     for point in period.find_all('point'):
         idx = int(point.find('position').text)
-        df.loc[tx[idx-1], 'Price'] = float(point.find('activation_price.amount').text)
-        df.loc[tx[idx-1], 'Direction'] = flow_direction
+        df.loc[tx[idx - 1], 'Price'] = float(point.find('activation_price.amount').text)
+        df.loc[tx[idx - 1], 'Direction'] = flow_direction
         df.loc[tx[idx - 1], 'ReserveType'] = reserve_type
-    
-    #df.fillna(method='ffill', inplace=True)
+
+    # df.fillna(method='ffill', inplace=True)
     df = df.infer_objects(copy=False).ffill()
     return df
+
 
 def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     """
@@ -613,6 +620,7 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
 
     return df
 
+
 def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     """
     Parameters
@@ -623,6 +631,7 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     -------
     pd.DataFrame
     """
+
     def gen_frames(archive):
         with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
             for f in arc.infolist():
@@ -634,6 +643,7 @@ def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
     df = pd.concat(frames)
     df.sort_index(inplace=True)
     return df
+
 
 def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     """
@@ -650,8 +660,8 @@ def _parse_imbalance_volumes_timeseries(soup) -> pd.DataFrame:
     if flow_direction:
         # time series uses flow direction codes
         flow_direction_factor = {
-            'A01': 1, # in
-            'A02': -1 # out
+            'A01': 1,  # in
+            'A02': -1  # out
         }[flow_direction.text]
     else:
         # time series uses positive and negative values
@@ -688,7 +698,7 @@ def _parse_netposition_timeseries(soup):
     positions = []
     quantities = []
     if 'REGION' in soup.find('out_domain.mrid').text:
-        factor = -1 # flow is import so negative
+        factor = -1  # flow is import so negative
     else:
         factor = 1
     for point in soup.find_all('point'):
@@ -701,6 +711,7 @@ def _parse_netposition_timeseries(soup):
 
     return series
 
+
 def _parse_load_timeseries(soup):
     """
     Parameters
@@ -712,6 +723,7 @@ def _parse_load_timeseries(soup):
     pd.Series
     """
     return _parse_timeseries_generic(soup, merge_series=True)
+
 
 def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: bool = False) -> pd.Series:
     """
@@ -729,7 +741,6 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
     # should never have duplicated timestamps when differing time resolution.
     # so simply concat all possibilities
     series = _parse_timeseries_generic(soup, merge_series=True)
-
 
     # Check if there is a psrtype, if so, get it.
     _psrtype = soup.find('psrtype')
@@ -761,7 +772,6 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
             eic = soup.find("mrid", codingscheme="A01").text
             name.insert(0, eic)
 
-
     if len(name) == 1:
         series.name = name[0]
     else:
@@ -771,6 +781,7 @@ def _parse_generation_timeseries(soup, per_plant: bool = False, include_eic: boo
         series.name = tuple(name)
 
     return series
+
 
 def _parse_installed_capacity_per_plant(soup):
     """
@@ -798,6 +809,7 @@ def _parse_installed_capacity_per_plant(soup):
 
     return series
 
+
 def _parse_crossborder_flows_timeseries(soup):
     """
     Parameters
@@ -819,9 +831,6 @@ def _parse_crossborder_flows_timeseries(soup):
     series.index = _parse_datetimeindex(soup)
 
     return series
-
-
-
 
 
 # Define inverse bidding zone dico to look up bidding zone labels from the
@@ -884,6 +893,49 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
     return [f + p for p in _available_period(soup)]
 
 
+
+HEADERS_UNAVAIL_CONSUMPTION = [
+    'created_doc_time',
+    'docstatus',
+    'mrid',
+    'revision',
+    'businesstype',
+    'biddingzone_domain',
+    'qty_uom',
+    'curvetype',
+    'start',
+    'end',
+    'resolution',
+    'pstn',
+    'avail_qty'
+]
+
+def _unavailability_consumption_ts(soup: bs4.BeautifulSoup) -> list:
+    """
+    Parser for generation unavailibility time-series
+    Parameters
+    ----------
+    soup : bs4.element.tag
+    tz : str
+
+    Returns
+    -------
+    list
+    """
+
+    # Avoid attribute errors when some of the fields are void:
+    get_attr = lambda attr: "" if soup.find(attr) is None else soup.find(
+        attr).text
+
+    f = [
+        BSNTYPE[get_attr('businesstype')],
+        _INV_BIDDING_ZONE_DICO[get_attr('biddingzone_domain.mrid')],
+        get_attr('quantity_measure_unit.name'),
+        get_attr('curvetype'),
+    ]
+    return [f + p for p in _available_period(soup)]
+
+
 HEADERS_UNAVAIL_TRANSM = ['created_doc_time',
                           'docstatus',
                           'mrid',
@@ -928,9 +980,12 @@ def _unavailability_tm_ts(soup: bs4.BeautifulSoup) -> list:
     return [f + p for p in _available_period(soup)]
 
 
-_UNAVAIL_PARSE_CFG = {'A77': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts),
-                      'A78': (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts),
-                      'A80': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)}
+_UNAVAIL_PARSE_CFG = {
+    'A76': (HEADERS_UNAVAIL_CONSUMPTION, _unavailability_consumption_ts),
+    'A77': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts),
+    'A78': (HEADERS_UNAVAIL_TRANSM, _unavailability_tm_ts),
+    'A80': (HEADERS_UNAVAIL_GEN, _unavailability_gen_ts)
+}
 
 
 def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
@@ -941,15 +996,19 @@ def parse_unavailabilities(response: bytes, doctype: str) -> pd.DataFrame:
     """
     # First, find out which parser and headers to use, based on the doc type:
     headers, ts_func = _UNAVAIL_PARSE_CFG[doctype]
-    dfs = list()
-    with zipfile.ZipFile(BytesIO(response), 'r') as arc:
-        for f in arc.infolist():
-            if f.filename.endswith('xml'):
-                frame = _outage_parser(arc.read(f), headers, ts_func)
-                dfs.append(frame)
-    if len(dfs) == 0:
+    frames = []
+    try:
+        with zipfile.ZipFile(BytesIO(response), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frames.append(arc.read(f))
+    except zipfile.BadZipFile:
+        frames.append(response)
+
+    if len(frames) == 0:
         df = pd.DataFrame(columns=headers)
     else:
+        dfs = [_outage_parser(frame, headers, ts_func) for frame in frames]
         df = pd.concat(dfs, axis=0)
     df.set_index('created_doc_time', inplace=True)
     df.sort_index(inplace=True)
@@ -967,7 +1026,8 @@ def parse_offshore_unavailability(response: bytes) -> pd.DataFrame:
                 for series in _extract_timeseries(arc.read(f)):
                     asset = series.find('Asset_RegisteredResource'.lower())
                     name = "|".join([asset.find(x).text for x in ['mrid', 'name', 'location.name']])
-                    df[name] = _parse_timeseries_generic(series, merge_series=True, period_name='windpowerfeedin_period')
+                    df[name] = _parse_timeseries_generic(series, merge_series=True,
+                                                         period_name='windpowerfeedin_period')
     return pd.DataFrame(df)
 
 
