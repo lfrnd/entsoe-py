@@ -252,7 +252,7 @@ class EntsoeRawClient:
         response = self._base_request(params=params, start=start, end=end)
         return response.text
 
-    def query_cross_zonal_balancing_capacity_allocation_and_use(
+    def query_cross_balancing_capacity_allocation_and_use(
         self,
         country_code_from: Union[Area, str],
         country_code_to: Union[Area, str],
@@ -2658,7 +2658,7 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
-    def query_cross_zonal_balancing_capacity_allocation_and_use(
+    def query_cross_balancing_capacity_allocation_and_use(
         self,
         country_code_from: Union[Area, str],
         country_code_to: Union[Area, str],
@@ -2669,7 +2669,7 @@ class EntsoePandasClient(EntsoeRawClient):
         **kwargs,
     ) -> pd.Series:
         return self._query_common_crossborder(
-            super_method="query_cross_zonal_balancing_capacity_allocation_and_use",
+            super_method="query_cross_balancing_capacity_allocation_and_use",
             parse_function=lambda v: parse_crossborder_flows(v, label2="procurement_price.amount"),
             country_code_from=country_code_from,
             country_code_to=country_code_to,
