@@ -130,6 +130,49 @@ def parse_generic(xml_text):
     return _parse_timeseries_generic_whole(xml_text, to_float=True)
 
 
+def parse_generic_zip(content, parse_func=_parse_timeseries_generic_whole):
+    def gen_xml(response):
+        documents = []
+        try:
+            with zipfile.ZipFile(BytesIO(response), 'r') as arc:
+                for f in arc.infolist():
+                    if f.filename.endswith('xml'):
+                        documents.append(arc.read(f))
+        except zipfile.BadZipFile:
+            documents.append(response)
+        return documents
+
+    data = [parse_func(xml, to_float=True) for xml in gen_xml(content)]
+    df = pd.concat(data)
+    return df
+
+
+def parse_financial_expenses(xml, **kwargs):
+    dfs = []
+
+    soup = bs4.BeautifulSoup(xml, 'html.parser')
+    for period in soup.find_all("period"):
+        data = {}
+        start = pd.Timestamp(period.find('start').text)
+        direction_map = {
+            "A01": "expense",
+            "A02": "income",
+        }
+        for point in period.find_all('financial_price'):
+            value = float(point.find("amount").text)
+            direction = direction_map[point.find('direction').text]
+
+            data[direction] = [value]
+
+        df = pd.DataFrame(
+            data={**data},
+            index=[start]
+        )
+        dfs.append(df)
+
+    return pd.concat(dfs)
+
+
 def parse_generation(
     xml_text: str,
     per_plant: bool = False,
@@ -261,17 +304,8 @@ def parse_water_hydro(xml_text):
     return _parse_timeseries_generic_whole(xml_text)
 
 
-def parse_crossborder_flows(xml_text):
-    """
-    Parameters
-    ----------
-    xml_text : str
-
-    Returns
-    -------
-    pd.Series
-    """
-    return _parse_timeseries_generic_whole(xml_text, to_float=True)
+def parse_crossborder_flows(xml_text, label="quantity", label2=None):
+    return _parse_timeseries_generic_whole(xml_text, to_float=True, label=label, label2=label2)
 
 
 def parse_activated_balancing_energy_prices(xml_text):
@@ -535,6 +569,67 @@ def parse_imbalance_prices_zip(zip_contents: bytes) -> pd.DataFrame:
             for f in arc.infolist():
                 if f.filename.endswith('xml'):
                     frame = parse_imbalance_prices(xml_text=arc.read(f))
+                    yield frame
+
+    frames = gen_frames(zip_contents)
+    df = pd.concat(frames)
+    df.sort_index(inplace=True)
+    return df
+
+
+def _parse_energy_bids_timeseries(soup) -> pd.DataFrame:
+    direction_options = {
+        'A01': 'Up',
+        'A02': 'Down'
+    }
+
+    point = soup.find('point')
+    period = soup.find('period')
+    df = pd.DataFrame(data={
+            'from': [pd.to_datetime(period.find('timeinterval').find('start').text)],
+            'to': [pd.to_datetime(period.find('timeinterval').find('end').text)],
+            'mrid': [soup.find('mrid').text],
+            'amount': [float(point.find('energy_price.amount').text)],
+            'quantity': [float(point.find('quantity.quantity').text)],
+            'direction': [direction_options[soup.find("flowdirection.direction").text]],
+        },
+    )
+    return df
+
+
+def parse_energy_bids(xml_text):
+    """
+    Parameters
+    ----------
+    xml_text : str
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    timeseries_blocks = _extract_timeseries(xml_text, label="bid_timeseries")
+    frames = (_parse_energy_bids_timeseries(soup)
+              for soup in timeseries_blocks)
+    df = pd.concat(frames)
+    return df
+
+
+def parse_energy_bids_zip(zip_contents: bytes) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    zip_contents : bytes
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+
+    def gen_frames(archive):
+        with zipfile.ZipFile(BytesIO(archive), 'r') as arc:
+            for f in arc.infolist():
+                if f.filename.endswith('xml'):
+                    frame = parse_energy_bids(xml_text=arc.read(f))
                     yield frame
 
     frames = gen_frames(zip_contents)
@@ -893,7 +988,6 @@ def _unavailability_gen_ts(soup: bs4.BeautifulSoup) -> list:
     return [f + p for p in _available_period(soup)]
 
 
-
 HEADERS_UNAVAIL_CONSUMPTION = [
     'created_doc_time',
     'docstatus',
@@ -909,6 +1003,7 @@ HEADERS_UNAVAIL_CONSUMPTION = [
     'pstn',
     'avail_qty'
 ]
+
 
 def _unavailability_consumption_ts(soup: bs4.BeautifulSoup) -> list:
     """

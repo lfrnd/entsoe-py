@@ -21,6 +21,8 @@ from .parsers import (
     parse_crossborder_flows,
     parse_generation,
     parse_generic,
+    parse_generic_zip,
+    parse_financial_expenses,
     parse_imbalance_prices_zip,
     parse_imbalance_volumes_zip,
     parse_installed_capacity_per_plant,
@@ -30,6 +32,7 @@ from .parsers import (
     parse_prices,
     parse_procured_balancing_capacity,
     parse_unavailabilities,
+    parse_energy_bids_zip,
     parse_water_hydro, parse_congestion_cost,
 )
 
@@ -277,7 +280,7 @@ class EntsoeRawClient:
         process_type: str,
         start: pd.Timestamp,
         end: pd.Timestamp,
-    ) -> str:
+    ) -> bytes:
         """
         processType
         [M] A60 = mFRR with Scheduled Activation; A61 = mFRR with Direct Activation;
@@ -292,7 +295,7 @@ class EntsoeRawClient:
             "connecting_Domain": area_to.code,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_balancing_energy_bids(
         self,
@@ -301,7 +304,7 @@ class EntsoeRawClient:
         end: pd.Timestamp,
         process_type: str,
         offset: int = 0,
-    ) -> str:
+    ) -> bytes:
         """
         processType
         [M] A46 = Replacement reserve; A47 = Manual frequency restoration reserve;
@@ -325,7 +328,7 @@ class EntsoeRawClient:
             "offset": offset,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_elastic_demands(
         self,
@@ -364,7 +367,7 @@ class EntsoeRawClient:
             "businessType": business_type,
             "Domain": area.code,
             "processType": "A47",
-            offset: offset,
+            "offset": offset,
         }
         response = self._base_request(params=params, start=start, end=end)
         return response.text
@@ -434,18 +437,18 @@ class EntsoeRawClient:
             "controlArea_Domain": area.code,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_total_imbalance_volumes(
         self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
-    ) -> str:
+    ) -> bytes:
         area = lookup_area(country_code)
         params = {
             "documentType": "A86",
             "controlArea_Domain": area.code,
         }
         response = self._base_request(params=params, start=start, end=end)
-        return response.text
+        return response.content
 
     def query_current_balancing_state(
         self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
@@ -1384,17 +1387,18 @@ class EntsoeRawClient:
         country_code: Union[Area, str],
         start: pd.Timestamp,
         end: pd.Timestamp,
-        psr_type: Optional[str] = None,
+        **kwargs,
     ) -> bytes:
-        return self.query_activated_balancing_energy_prices(
-            country_code=country_code,
-            start=start,
-            end=end,
-            process_type="A67",
-            psr_type=psr_type,
-            business_type="A96",
-            standard_market_product="A01",
-        )
+        area = lookup_area(country_code)
+        params = {
+            "documentType": "A84",
+            "processType": "A67",
+            "businessType": "A96",
+            "Standard_MarketProduct": "A01",
+            "controlArea_Domain": area.code,
+        }
+        response = self._base_request(params=params, start=start, end=end)
+        return response.content
 
     def query_imbalance_prices(
         self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, psr_type: Optional[str] = None
@@ -2642,8 +2646,10 @@ class EntsoePandasClient(EntsoeRawClient):
         offset: int = 0,
         **kwargs,
     ) -> pd.Series:
+        area = lookup_area(country_code_from)
         return self._query_common_crossborder(
             super_method="query_exchanged_reserve_capacity",
+            parse_function=lambda text: parse_contracted_reserve(text, area.tz, "amount"),
             country_code_from=country_code_from,
             country_code_to=country_code_to,
             offset=offset,
@@ -2664,6 +2670,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_crossborder(
             super_method="query_cross_zonal_balancing_capacity_allocation_and_use",
+            parse_function=lambda v: parse_crossborder_flows(v, label2="procurement_price.amount"),
             country_code_from=country_code_from,
             country_code_to=country_code_to,
             type_marketagreement_type=type_marketagreement_type,
@@ -2701,6 +2708,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_crossborder(
             super_method="query_netted_and_exchanged_volumes",
+            parse_function=parse_generic_zip,
             country_code_from=country_code_from,
             country_code_to=country_code_to,
             start=start,
@@ -2778,6 +2786,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_balancing_financial_expenses_and_income",
+            parse_func=lambda v: parse_generic_zip(v, parse_func=parse_financial_expenses),
             country_code=country_code,
             start=start,
             end=end,
@@ -2789,6 +2798,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_total_imbalance_volumes",
+            parse_func=lambda v: parse_imbalance_volumes_zip(zip_contents=v),
             country_code=country_code,
             start=start,
             end=end,
@@ -2837,15 +2847,13 @@ class EntsoePandasClient(EntsoeRawClient):
         process_type: str,
         offset: int = 0,
         **kwargs,
-    ) -> pd.Series:
-        return self._query_common_single_country(
-            super_method="query_balancing_energy_bids",
-            country_code=country_code,
-            process_type=process_type,
-            offset=offset,
-            start=start,
-            end=end,
+    ) -> pd.DataFrame:
+        area = lookup_area(country_code)
+        archive = super(EntsoePandasClient, self).query_balancing_energy_bids(
+            country_code=area, start=start, end=end, process_type=process_type, offset=offset,
         )
+        df = parse_energy_bids_zip(zip_contents=archive)
+        return df
 
     @paginated
     def query_bids_availability(
@@ -3444,7 +3452,7 @@ class EntsoePandasClient(EntsoeRawClient):
             psr_type=psr_type,
             offset=offset,
         )
-        df = parse_contracted_reserve(text, area.tz, "amount")
+        df = parse_contracted_reserve(text, area.tz, "quantity")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
@@ -3471,7 +3479,7 @@ class EntsoePandasClient(EntsoeRawClient):
             psr_type=psr_type,
             offset=offset,
         )
-        df = parse_contracted_reserve(text, area.tz, "amount")
+        df = parse_contracted_reserve(text, area.tz, "procurement_price.amount")
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df

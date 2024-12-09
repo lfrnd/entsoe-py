@@ -2,7 +2,7 @@ import bs4
 import pandas as pd
 
 
-def _extract_timeseries(xml_text):
+def _extract_timeseries(xml_text, label="timeseries"):
     """
     Parameters
     ----------
@@ -15,7 +15,7 @@ def _extract_timeseries(xml_text):
     if not xml_text:
         return
     soup = bs4.BeautifulSoup(xml_text, 'html.parser')
-    for timeseries in soup.find_all('timeseries'):
+    for timeseries in soup.find_all(label):
         yield timeseries
 
 
@@ -27,7 +27,8 @@ RESOLUTIONS = {
     'P1D': '1D',
     'P7D': '7D',
     'P1M': '1MS',
-    'PT1M': '1min'
+    'PT1M': '1min',
+    'PT4S': '4D 4h',
 }
 
 
@@ -86,7 +87,7 @@ def _parse_datetimeindex(soup, tz=None):
     return index
 
 
-def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_series=False, period_name='period'):
+def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True, merge_series=False, period_name='period'):
     series = {resolution: [] for resolution in RESOLUTIONS.values()}
 
     for period in soup.find_all(period_name):
@@ -96,7 +97,7 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
         delta_text = _resolution_to_timedelta(res_text=period.find('resolution').text)
         delta = pd.Timedelta(delta_text)
         for point in period.find_all('point'):
-            value = point.find(label).text
+            value = (point.find(label) or point.find(label2)).text
             if to_float:
                 value = value.replace(',', '')
             position = int(point.find('position').text)
@@ -127,10 +128,10 @@ def _parse_timeseries_generic(soup, label='quantity', to_float=True, merge_serie
         return series
 
 
-def _parse_timeseries_generic_whole(xml_text, label='quantity', to_float=True):
+def _parse_timeseries_generic_whole(xml_text, label='quantity', label2=None, to_float=True):
     series_all = []
     for soup in _extract_timeseries(xml_text):
-        series_all.append(_parse_timeseries_generic(soup, label=label, to_float=to_float, merge_series=True))
+        series_all.append(_parse_timeseries_generic(soup, label=label, label2=label2, to_float=to_float, merge_series=True))
 
     series_all = pd.concat(series_all).sort_index()
     return series_all
