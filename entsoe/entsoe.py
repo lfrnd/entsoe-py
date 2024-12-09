@@ -1423,11 +1423,13 @@ class EntsoeRawClient:
         return response.content
 
     def query_accepted_aggregated_offers(
-        self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, psr_type: Optional[str] = None
+        self, country_code: Union[Area, str], start: pd.Timestamp,
+        end: pd.Timestamp, business_type: str, psr_type: Optional[str] = None
     ) -> bytes:
         area = lookup_area(country_code)
         params = {
             "documentType": "A82",
+            "businessType": business_type,
             "controlArea_Domain": area.code,
         }
         if psr_type:
@@ -3080,10 +3082,12 @@ class EntsoePandasClient(EntsoeRawClient):
         country_code: Union[Area, str],
         start: pd.Timestamp,
         end: pd.Timestamp,
+        business_type: str,
         **kwargs,
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_accepted_aggregated_offers",
+            business_type=business_type,
             country_code=country_code,
             start=start,
             end=end,
