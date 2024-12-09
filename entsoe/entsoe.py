@@ -1821,9 +1821,9 @@ class EntsoeRawClient:
         return content
 
     def query_unavailability_of_offshore_grid(
-        self, area_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
+        self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
     ):
-        return self._query_unavailability(country_code=area_code, start=start, end=end, doctype="A79")
+        return self._query_unavailability(country_code=country_code, start=start, end=end, doctype="A79")
 
     def query_unavailability_of_production_units(
         self,
@@ -3566,10 +3566,10 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     def query_unavailability_of_offshore_grid(
-        self, area_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
+        self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp
     ) -> pd.DataFrame:
         zipfile = super(EntsoePandasClient, self)._query_unavailability(
-            country_code=area_code, start=start, end=end, doctype="A79"
+            country_code=country_code, start=start, end=end, doctype="A79"
         )
         df = parse_offshore_unavailability(zipfile)
         return df
