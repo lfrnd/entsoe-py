@@ -1207,6 +1207,7 @@ class EntsoeRawClient:
             doctype="A25",
             contract_marketagreement_type=contract_marketagreement_type,
             business_type="B10",
+            **kwargs,
         )
 
     def query_transfer_capacities_third_countries(
@@ -1228,6 +1229,7 @@ class EntsoeRawClient:
             contract_marketagreement_type=contract_marketagreement_type,
             auction_type="A01" if implicit else "A02",
             auction_category="A04",
+            **kwargs,
         )
 
     def query_total_capacity_allocated(
@@ -1247,6 +1249,7 @@ class EntsoeRawClient:
             doctype="A26",
             contract_marketagreement_type=contract_marketagreement_type,
             business_type="A29",
+            **kwargs,
         )
 
     def query_total_nominated_capacity(
@@ -2519,7 +2522,6 @@ class EntsoePandasClient(EntsoeRawClient):
         return ts
 
     @paginated
-    @documents_limited(100)
     def query_offered_capacity(
         self,
         country_code_from: Union[Area, str],
@@ -2721,6 +2723,7 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
+    @documents_limited(100)
     def query_elastic_demands(
         self, country_code: Union[Area, str], start: pd.Timestamp, end: pd.Timestamp, **kwargs
     ) -> pd.Series:
@@ -2860,6 +2863,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @paginated
+    @documents_limited(100)
     def query_bids_availability(
         self,
         country_code: Union[Area, str],
@@ -2879,7 +2883,6 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
-    @documents_limited(100)
     def query_capacity_usage(
         self,
         country_code_from: Union[Area, str],
@@ -2901,7 +2904,6 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
-    @documents_limited(100)
     def query_expansion_dismantling_project(
         self,
         country_code_from: Union[Area, str],
@@ -2938,7 +2940,6 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
-    @documents_limited(100)
     def query_auction_revenue(
         self,
         country_code_from: Union[Area, str],
@@ -3445,6 +3446,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @paginated
+    @documents_limited(100)
     def query_balancing_reserve_under_contract(
         self,
         country_code: Union[Area, str],
@@ -3472,6 +3474,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @paginated
+    @documents_limited(100)
     def query_balancing_reserve_prices(
         self,
         country_code: Union[Area, str],
@@ -3697,6 +3700,7 @@ class EntsoePandasClient(EntsoeRawClient):
         return df
 
     @paginated
+    @documents_limited(200)
     def query_unavailability_transmission(
         self,
         country_code_from: Union[Area, str],
