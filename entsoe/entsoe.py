@@ -962,6 +962,7 @@ class EntsoeRawClient:
             end=end,
             doctype="A90",
             business_type="B01",
+            **kwargs,
         )
 
     def query_countertrading(
@@ -1126,6 +1127,7 @@ class EntsoeRawClient:
             doctype="A31",
             contract_marketagreement_type=contract_marketagreement_type,
             auction_type=("A01" if implicit else "A02"),
+            **kwargs,
         )
 
     def query_capacity_usage(
@@ -1146,6 +1148,7 @@ class EntsoeRawClient:
             business_type="B05",
             auction_category="A04",
             contract_marketagreement_type=contract_marketagreement_type,
+            **kwargs,
         )
 
     def query_energy_prices(
@@ -1184,6 +1187,7 @@ class EntsoeRawClient:
             doctype="A25",
             business_type="B07",
             contract_marketagreement_type=contract_marketagreement_type,
+            **kwargs,
         )
 
     def query_congestion_income(
@@ -1474,6 +1478,7 @@ class EntsoeRawClient:
         end: pd.Timestamp,
         process_type: str,
         type_marketagreement_type: Optional[str] = None,
+        offset: int = 0,
     ) -> bytes:
         """
         Parameters
@@ -1494,7 +1499,7 @@ class EntsoeRawClient:
             raise ValueError("processType allowed values: A51, A47")
 
         area = lookup_area(country_code)
-        params = {"documentType": "A15", "area_Domain": area.code, "processType": process_type}
+        params = {"documentType": "A15", "area_Domain": area.code, "processType": process_type, "offset": offset}
         if type_marketagreement_type:
             params.update({"type_MarketAgreement.Type": type_marketagreement_type})
         response = self._base_request(params=params, start=start, end=end)
@@ -2513,9 +2518,8 @@ class EntsoePandasClient(EntsoeRawClient):
         ts = ts.truncate(before=start, after=end)
         return ts
 
-    @year_limited
     @paginated
-    # @documents_limited(100)
+    @documents_limited(100)
     def query_offered_capacity(
         self,
         country_code_from: Union[Area, str],
@@ -2875,6 +2879,7 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
+    @documents_limited(100)
     def query_capacity_usage(
         self,
         country_code_from: Union[Area, str],
@@ -2896,12 +2901,14 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
+    @documents_limited(100)
     def query_expansion_dismantling_project(
         self,
         country_code_from: Union[Area, str],
         country_code_to: Union[Area, str],
         start: pd.Timestamp,
         end: pd.Timestamp,
+        offset: int = 0,
         **kwargs,
     ) -> pd.Series:
         return self._query_common_crossborder(
@@ -2910,6 +2917,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code_to=country_code_to,
             start=start,
             end=end,
+            offset=offset,
         )
 
     @paginated
@@ -2930,6 +2938,7 @@ class EntsoePandasClient(EntsoeRawClient):
         )
 
     @paginated
+    @documents_limited(100)
     def query_auction_revenue(
         self,
         country_code_from: Union[Area, str],
@@ -2937,6 +2946,7 @@ class EntsoePandasClient(EntsoeRawClient):
         contract_marketagreement_type: str,
         start: pd.Timestamp,
         end: pd.Timestamp,
+        offset: int = 0,
         **kwargs,
     ) -> pd.Series:
         return self._query_common_crossborder(
@@ -2946,6 +2956,7 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             contract_marketagreement_type=contract_marketagreement_type,
+            offset=offset,
         )
 
     @paginated
@@ -3270,6 +3281,7 @@ class EntsoePandasClient(EntsoeRawClient):
 
     @year_limited
     @paginated
+    @documents_limited(100)
     def query_procured_balancing_capacity(
         self,
         country_code: Union[Area, str],
@@ -3277,6 +3289,7 @@ class EntsoePandasClient(EntsoeRawClient):
         start: pd.Timestamp,
         end: pd.Timestamp,
         type_marketagreement_type: Optional[str] = None,
+        offset: int = 0,
     ) -> bytes:
         """
         Parameters
@@ -3300,6 +3313,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end,
             process_type=process_type,
             type_marketagreement_type=type_marketagreement_type,
+            offset=offset,
         )
         df = parse_procured_balancing_capacity(text, area.tz)
         df = df.tz_convert(area.tz)
