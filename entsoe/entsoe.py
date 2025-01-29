@@ -2732,6 +2732,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code,
             start=start,
             end=end,
+            parse_func=lambda text: parse_generic(text, ts_label="Bid_TimeSeries"),
         )
 
     @paginated

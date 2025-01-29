@@ -126,8 +126,8 @@ def parse_loads(xml_text, process_type='A01'):
         })
 
 
-def parse_generic(xml_text):
-    return _parse_timeseries_generic_whole(xml_text, to_float=True)
+def parse_generic(xml_text, ts_label="timeseries"):
+    return _parse_timeseries_generic_whole(xml_text, to_float=True, ts_label=ts_label)
 
 
 def parse_generic_zip(content, parse_func=_parse_timeseries_generic_whole):

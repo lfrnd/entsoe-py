@@ -128,9 +128,9 @@ def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True
         return series
 
 
-def _parse_timeseries_generic_whole(xml_text, label='quantity', label2=None, to_float=True):
+def _parse_timeseries_generic_whole(xml_text, label='quantity', label2=None, to_float=True, ts_label="timeseries"):
     series_all = []
-    for soup in _extract_timeseries(xml_text):
+    for soup in _extract_timeseries(xml_text, label=ts_label):
         series_all.append(_parse_timeseries_generic(soup, label=label, label2=label2, to_float=to_float, merge_series=True))
 
     series_all = pd.concat(series_all).sort_index()
