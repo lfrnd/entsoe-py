@@ -585,16 +585,18 @@ def _parse_energy_bids_timeseries(soup) -> pd.DataFrame:
 
     point = soup.find('point')
     period = soup.find('period')
-    df = pd.DataFrame(data={
-            'from': [pd.to_datetime(period.find('timeinterval').find('start').text)],
-            'to': [pd.to_datetime(period.find('timeinterval').find('end').text)],
-            'mrid': [soup.find('mrid').text],
-            'amount': [float(point.find('energy_price.amount').text)],
-            'quantity': [float(point.find('quantity.quantity').text)],
-            'direction': [direction_options[soup.find("flowdirection.direction").text]],
-        },
-    )
-    return df
+
+    data = {}
+    if mrid := soup.find('mrid'):
+        data["mrid"] = mrid.text
+    if amount := point.find('energy_price.amount'):
+        data["amount"] = [float(amount.text)]
+    if quantity := point.find('quantity.quantity'):
+        data["quantity"] = [float(quantity.text)]
+    if direction := soup.find('flowdirection.direction'):
+        data["direction"] = [direction_options[direction.text]]
+
+    return pd.DataFrame(data=data, index=[pd.to_datetime(period.find('timeinterval').find('start').text)])
 
 
 def parse_energy_bids(xml_text):

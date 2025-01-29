@@ -33,7 +33,9 @@ from .parsers import (
     parse_procured_balancing_capacity,
     parse_unavailabilities,
     parse_energy_bids_zip,
-    parse_water_hydro, parse_congestion_cost,
+    parse_water_hydro,
+    parse_congestion_cost,
+    parse_energy_bids,
 )
 
 
@@ -2732,7 +2734,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code,
             start=start,
             end=end,
-            parse_func=lambda text: parse_generic(text, ts_label="bid_timeseries"),
+            parse_func=parse_energy_bids,
         )
 
     @paginated
