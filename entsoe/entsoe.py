@@ -2115,6 +2115,7 @@ class EntsoePandasClient(EntsoeRawClient):
         text = method(country_code=area, start=start, end=end, **kwargs)
         df = parse_func(text)
         df = df.tz_convert(area.tz)
+        df = df.sort_index()
         df = df.truncate(before=start, after=end)
         return df
 
