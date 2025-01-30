@@ -461,7 +461,8 @@ def _parse_procured_balancing_capacity(soup, tz):
     """
     direction = {
         'A01': 'Up',
-        'A02': 'Down'
+        'A02': 'Down',
+        'A03': 'Symmetric',
     }
 
     flow_direction = direction[soup.find('flowdirection.direction').text]
