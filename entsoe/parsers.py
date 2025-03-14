@@ -46,6 +46,12 @@ def parse_prices(xml_text):
     return series
 
 
+def merge_multiple_prices(text: str):
+    dfs = parse_prices(text)
+    merged = pd.concat([dfs["15min"], dfs["60min"]])
+    return merged[~merged.index.duplicated(keep='first')]
+
+
 def parse_congestion_cost(xml_text):
     resolution = '1MS'
     series = []

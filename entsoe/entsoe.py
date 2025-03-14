@@ -29,13 +29,13 @@ from .parsers import (
     parse_loads,
     parse_netpositions,
     parse_offshore_unavailability,
-    parse_prices,
     parse_procured_balancing_capacity,
     parse_unavailabilities,
     parse_energy_bids_zip,
     parse_water_hydro,
     parse_congestion_cost,
     parse_energy_bids,
+    merge_multiple_prices,
 )
 
 
@@ -2008,7 +2008,7 @@ class EntsoePandasClient(EntsoeRawClient):
         country_code: Union[Area, str],
         start: pd.Timestamp,
         end: pd.Timestamp,
-        resolution: Literal["60min", "30min", "15min"] = "60min",
+        offset: int = 0,
     ) -> pd.Series:
         """
         Parameters
@@ -2023,12 +2023,10 @@ class EntsoePandasClient(EntsoeRawClient):
         -------
         pd.Series
         """
-        if resolution not in ["60min", "30min", "15min"]:
-            raise InvalidParameterError("Please choose either 60min, 30min or 15min")
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         series = self._query_day_ahead_prices(
-            area, start=start - pd.Timedelta(days=1), end=end + pd.Timedelta(days=1), resolution=resolution
+            area, start=start - pd.Timedelta(days=1), end=end + pd.Timedelta(days=1), offset=offset
         )
         series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
@@ -2044,11 +2042,10 @@ class EntsoePandasClient(EntsoeRawClient):
         area: Area,
         start: pd.Timestamp,
         end: pd.Timestamp,
-        resolution: Literal["60min", "30min", "15min"] = "60min",
         offset: int = 0,
     ) -> pd.Series:
         text = super(EntsoePandasClient, self).query_day_ahead_prices(area, start=start, end=end, offset=offset)
-        series = parse_prices(text)[resolution]
+        series = merge_multiple_prices(text)
 
         if len(series) == 0:
             raise NoMatchingDataError
@@ -2603,7 +2600,7 @@ class EntsoePandasClient(EntsoeRawClient):
     ) -> pd.Series:
         return self._query_common_single_country(
             super_method="query_energy_prices",
-            parse_func=lambda text: parse_prices(text)["15min"],
+            parse_func=merge_multiple_prices,
             country_code=country_code,
             start=start,
             end=end,
