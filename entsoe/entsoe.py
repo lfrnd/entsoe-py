@@ -2026,7 +2026,7 @@ class EntsoePandasClient(EntsoeRawClient):
         area = lookup_area(country_code)
         # we do here extra days at start and end to fix issue 187
         series = self._query_day_ahead_prices(
-            area, start=start - pd.Timedelta(days=1), end=end + pd.Timedelta(days=1), offset=offset
+            area, start=start - pd.Timedelta(days=1), end=end + pd.Timedelta(days=1)
         )
         series = series.tz_convert(area.tz).sort_index()
         series = series.truncate(before=start, after=end)
