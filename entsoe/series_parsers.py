@@ -87,7 +87,9 @@ def _parse_datetimeindex(soup, tz=None):
     return index
 
 
-def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True, merge_series=False, period_name='period'):
+def _parse_timeseries_generic(
+    soup, label='quantity', label2=None, merge_series=False, period_name='period', add_classification_sequence=False, add_direction=False, add_contract=False
+):
     series = {resolution: [] for resolution in RESOLUTIONS.values()}
 
     for period in soup.find_all(period_name):
@@ -96,12 +98,16 @@ def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True
         end = pd.Timestamp(period.find('end').text)
         delta_text = _resolution_to_timedelta(res_text=period.find('resolution').text)
         delta = pd.Timedelta(delta_text)
+
         for point in period.find_all('point'):
             value = (point.find(label) or point.find(label2)).text
-            if to_float:
-                value = value.replace(',', '')
+            value = value.replace(',', '')
             position = int(point.find('position').text)
             data[start + (position - 1) * delta] = value
+
+        if len(data) == 1 and list(data.values())[0] == '0':
+            continue
+
         S = pd.Series(data).sort_index()
         if soup.find('curvetype').text == 'A03':
             # with A03 its possible that positions are missing, this is when values are repeated
@@ -109,6 +115,28 @@ def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True
             # so lets do reindex on a continious range which creates gaps if positions are missing
             # then forward fill, so repeat last valid value, to fill the gaps
             S = S.reindex(pd.date_range(start, end - delta, freq=delta_text)).ffill()
+
+        if add_classification_sequence or add_direction or add_contract:
+            S = pd.DataFrame(S, columns=["value"])
+        if (
+            add_classification_sequence and
+            (classification_sequence := soup.find(lambda tag: tag.name.lower() == 'classificationsequence_attributeinstancecomponent.position')) and
+            classification_sequence.text
+        ):
+            S["classification_sequence"] = classification_sequence.text
+        if (
+            add_direction and
+            (direction := soup.find(lambda tag: tag.name.lower() == 'flowdirection.direction')) and
+            direction.text
+        ):
+            S["direction"] = direction.text
+        if (
+            add_contract and
+            (contract := soup.find(lambda tag: tag.name.lower() == 'contract_marketagreement.type')) and
+            contract.text
+        ):
+            S["contract_marketagreement_type"] = contract.text
+
         if delta_text not in series:
             series[delta_text] = []
         series[delta_text].append(S)
@@ -116,22 +144,28 @@ def _parse_timeseries_generic(soup, label='quantity', label2=None, to_float=True
     for freq, S in series.items():
         if len(S) > 0:
             series[freq] = pd.concat(S).sort_index()
-            if to_float:
+            if isinstance(series[freq], pd.Series):
                 series[freq] = series[freq].astype(float)
+            else:
+                series[freq]["value"] = series[freq]["value"].astype(float)
         else:
             series[freq] = None
 
     # for endpoints which never has duplicated timeseries the flag merge_series signals to just concat everything
     if merge_series:
-        return pd.concat(series.values())
+        all_series = [val for val in series.values() if val is not None]
+        return pd.concat(all_series) if all_series else pd.DataFrame()
     else:
         return series
 
 
-def _parse_timeseries_generic_whole(xml_text, label='quantity', label2=None, to_float=True, ts_label="timeseries"):
+def _parse_timeseries_generic_whole(xml_text, label='quantity', label2=None, ts_label="timeseries", take_last=False, **kwargs):
     series_all = []
     for soup in _extract_timeseries(xml_text, label=ts_label):
-        series_all.append(_parse_timeseries_generic(soup, label=label, label2=label2, to_float=to_float, merge_series=True))
+        series_all.append(_parse_timeseries_generic(soup, label=label, label2=label2, merge_series=True, **kwargs))
 
-    series_all = pd.concat(series_all).sort_index()
+    if take_last:
+        series_all = series_all[-1].sort_index()
+    else:
+        series_all = pd.concat(series_all).sort_index()
     return series_all

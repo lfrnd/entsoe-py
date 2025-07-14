@@ -2562,7 +2562,7 @@ class EntsoePandasClient(EntsoeRawClient):
             implicit=implicit,
             offset=offset,
         )
-        ts = parse_crossborder_flows(text)
+        ts = parse_crossborder_flows(text, add_classification_sequence=True)
         ts = ts.tz_convert(area_from.tz)
         ts = ts.truncate(before=start, after=end)
         return ts
@@ -2700,6 +2700,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code_to=country_code_to,
             start=start,
             end=end,
+            parse_function=lambda text: parse_crossborder_flows(text, label="secondaryquantity", add_direction=True),
         )
 
     @paginated
@@ -2959,6 +2960,7 @@ class EntsoePandasClient(EntsoeRawClient):
             end=end,
             contract_marketagreement_type=contract_marketagreement_type,
             offset=offset,
+            parse_function=lambda text: parse_crossborder_flows(text, label="price.amount")
         )
 
     @paginated
@@ -3043,6 +3045,7 @@ class EntsoePandasClient(EntsoeRawClient):
             start=start,
             end=end,
             offset=offset,
+            parse_function=lambda text: parse_crossborder_flows(text, add_contract=True),
         )
 
     @paginated
@@ -3062,6 +3065,7 @@ class EntsoePandasClient(EntsoeRawClient):
             process_type=process_type,
             start=start,
             end=end,
+            parse_function=lambda text: parse_crossborder_flows(text, take_last=True),
         )
 
     @paginated
@@ -3112,6 +3116,7 @@ class EntsoePandasClient(EntsoeRawClient):
             country_code=country_code,
             start=start,
             end=end,
+            parse_func=lambda text: parse_generic(text, add_direction=True),
         )
 
     @paginated

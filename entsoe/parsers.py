@@ -132,8 +132,8 @@ def parse_loads(xml_text, process_type='A01'):
         })
 
 
-def parse_generic(xml_text, ts_label="timeseries"):
-    return _parse_timeseries_generic_whole(xml_text, to_float=True, ts_label=ts_label)
+def parse_generic(xml_text, ts_label="timeseries", **kwargs):
+    return _parse_timeseries_generic_whole(xml_text, ts_label=ts_label, **kwargs)
 
 
 def parse_generic_zip(content, parse_func=_parse_timeseries_generic_whole):
@@ -148,7 +148,7 @@ def parse_generic_zip(content, parse_func=_parse_timeseries_generic_whole):
             documents.append(response)
         return documents
 
-    data = [parse_func(xml, to_float=True) for xml in gen_xml(content)]
+    data = [parse_func(xml) for xml in gen_xml(content)]
     df = pd.concat(data)
     return df
 
@@ -310,8 +310,8 @@ def parse_water_hydro(xml_text):
     return _parse_timeseries_generic_whole(xml_text)
 
 
-def parse_crossborder_flows(xml_text, label="quantity", label2=None):
-    return _parse_timeseries_generic_whole(xml_text, to_float=True, label=label, label2=label2)
+def parse_crossborder_flows(xml_text, label="quantity", label2=None, **kwargs):
+    return _parse_timeseries_generic_whole(xml_text, label=label, label2=label2, **kwargs)
 
 
 def parse_activated_balancing_energy_prices(xml_text):
