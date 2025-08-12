@@ -154,7 +154,7 @@ def _parse_timeseries_generic(
     # for endpoints which never has duplicated timeseries the flag merge_series signals to just concat everything
     if merge_series:
         all_series = [val for val in series.values() if val is not None]
-        return pd.concat(all_series) if all_series else pd.DataFrame()
+        return pd.concat(all_series) if all_series else pd.Series()
     else:
         return series
 

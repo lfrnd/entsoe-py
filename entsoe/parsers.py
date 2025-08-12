@@ -203,6 +203,8 @@ def parse_generation(
     all_series = dict()
     for soup in _extract_timeseries(xml_text):
         ts = _parse_generation_timeseries(soup, per_plant=per_plant, include_eic=include_eic)
+        if ts.empty:
+            continue
 
         # check if we already have a series of this name
         series = all_series.get(ts.name)
@@ -508,6 +510,7 @@ def parse_contracted_reserve(xml_text, tz, label):
     timeseries_blocks = _extract_timeseries(xml_text)
     frames = (_parse_contracted_reserve_series(soup, tz, label)
               for soup in timeseries_blocks)
+    frames = [v for v in frames if not v.empty]
     df = pd.concat(frames, axis=1)
     # Ad-hoc fix to prevent that columns are split by NaNs:
     df = df.groupby(axis=1, level=[0, 1]).mean()
@@ -531,7 +534,14 @@ def _parse_contracted_reserve_series(soup, tz, label):
     prices = []
     for point in soup.find_all('point'):
         positions.append(int(point.find('position').text))
-        prices.append(float(point.find(label).text))
+
+        if price := point.find(label):
+            prices.append(float(price.text))
+        else:
+            break
+
+    if not prices:
+        return pd.Series()
 
     df = pd.DataFrame(data={'position': positions,
                             label: prices})
