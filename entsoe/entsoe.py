@@ -1287,6 +1287,7 @@ class EntsoeRawClient:
             end=end,
             doctype="A31",
             business_type="B26",
+            auction_type="A01",
             process_type=process_type,
         )
 
