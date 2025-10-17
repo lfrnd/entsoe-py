@@ -725,7 +725,11 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
                             'amount': amounts, 'category': categories})
     df = df.set_index(['position', 'category']).unstack()
     df.sort_index(inplace=True)
-    df.index = _parse_datetimeindex(soup)
+
+    new_index = _parse_datetimeindex(soup)
+    new_index2 = [new_index[position - 1] for position in df.index]
+    df.index = new_index2
+
     df = df.xs('amount', axis=1)
     df.index.name = None
     df.columns.name = None
