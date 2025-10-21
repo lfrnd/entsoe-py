@@ -710,33 +710,36 @@ def _parse_imbalance_prices_timeseries(soup) -> pd.DataFrame:
     -------
     pd.DataFrame
     """
-    positions = []
-    amounts = []
-    categories = []
-    for point in soup.find_all('point'):
-        positions.append(int(point.find('position').text))
-        amounts.append(float(point.find('imbalance_price.amount').text))
-        if point.find('imbalance_price.category'):
-            categories.append(point.find('imbalance_price.category').text)
-        else:
-            categories.append('None')
+    dfs = []
+    for period in soup.find_all('period'):
+        positions = []
+        amounts = []
+        categories = []
+        for point in period.find_all('point'):
+            positions.append(int(point.find('position').text))
+            amounts.append(float(point.find('imbalance_price.amount').text))
+            if point.find('imbalance_price.category'):
+                categories.append(point.find('imbalance_price.category').text)
+            else:
+                categories.append('None')
 
-    df = pd.DataFrame(data={'position': positions,
-                            'amount': amounts, 'category': categories})
-    df = df.set_index(['position', 'category']).unstack()
-    df.sort_index(inplace=True)
+        df = pd.DataFrame(data={'position': positions,
+                                'amount': amounts, 'category': categories})
+        df = df.set_index(['position', 'category']).unstack()
+        df.sort_index(inplace=True)
 
-    new_index = _parse_datetimeindex(soup)
-    new_index2 = [new_index[position - 1] for position in df.index]
-    df.index = new_index2
+        new_index = _parse_datetimeindex(period)
+        new_index2 = [new_index[position - 1] for position in df.index]
+        df.index = new_index2
 
-    df = df.xs('amount', axis=1)
-    df.index.name = None
-    df.columns.name = None
-    df.rename(columns={'A04': 'Long', 'A05': 'Short',
-                       'None': 'Price for Consumption'}, inplace=True)
+        df = df.xs('amount', axis=1)
+        df.index.name = None
+        df.columns.name = None
+        df.rename(columns={'A04': 'Long', 'A05': 'Short',
+                           'None': 'Price for Consumption'}, inplace=True)
+        dfs.append(df)
 
-    return df
+    return pd.concat(dfs) if dfs else pd.DataFrame()
 
 
 def parse_imbalance_volumes_zip(zip_contents: bytes) -> pd.DataFrame:
