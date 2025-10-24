@@ -261,7 +261,7 @@ def _calc_nett_and_drop_redundant_columns(
         if nett:
             df = _calc_nett(df)
         elif len(df.columns) == 1:
-            df = df.squeeze()
+            df = df[df.columns[0]]
 
     return df
 
