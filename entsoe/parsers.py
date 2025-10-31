@@ -474,25 +474,29 @@ def _parse_procured_balancing_capacity(soup, tz):
     }
 
     flow_direction = direction[soup.find('flowdirection.direction').text]
-    period = soup.find('period')
-    start = pd.to_datetime(period.find('timeinterval').find('start').text)
-    end = pd.to_datetime(period.find('timeinterval').find('end').text)
-    resolution = _resolution_to_timedelta(period.find('resolution').text)
-    tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
-    points = period.find_all('point')
-    df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
+    parts = []
+    for period in soup.find_all('period'):
+        start = pd.to_datetime(period.find('timeinterval').find('start').text)
+        end = pd.to_datetime(period.find('timeinterval').find('end').text)
+        resolution = _resolution_to_timedelta(period.find('resolution').text)
+        tx = pd.date_range(start=start, end=end, freq=resolution, inclusive='left')
+        points = period.find_all('point')
+        df = pd.DataFrame(index=tx, columns=['Price', 'Volume'])
 
-    for dt, point in zip(tx, points):
-        df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
-        df.loc[dt, 'Volume'] = float(point.find('quantity').text)
+        for dt, point in zip(tx, points):
+            df.loc[dt, 'Price'] = float(point.find('procurement_price.amount').text)
+            df.loc[dt, 'Volume'] = float(point.find('quantity').text)
 
-    mr_id = int(soup.find('mrid').text)
-    df.columns = pd.MultiIndex.from_product(
-        [[flow_direction], [mr_id], df.columns],
-        names=('direction', 'mrid', 'unit')
-    )
+        mr_id = int(soup.find('mrid').text)
+        df.columns = pd.MultiIndex.from_product(
+            [[flow_direction], [mr_id], df.columns],
+            names=('direction', 'mrid', 'unit')
+        )
+        parts.append(df)
 
-    return df
+    final_df = pd.concat(parts)
+
+    return final_df
 
 
 def parse_contracted_reserve(xml_text, tz, label):

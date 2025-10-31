@@ -3323,7 +3323,8 @@ class EntsoePandasClient(EntsoeRawClient):
             type_marketagreement_type=type_marketagreement_type,
             offset=offset,
         )
-        df = parse_procured_balancing_capacity(text, area.tz)
+        # df = parse_procured_balancing_capacity(text, area.tz)
+        df = parse_generic_zip(text, parse_func=lambda xml: parse_procured_balancing_capacity(xml, area.tz))
         df = df.tz_convert(area.tz)
         df = df.truncate(before=start, after=end)
         return df
